@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/orcaman/concurrent-map"
 )
 
 // Session wrapper around websocket connections.
@@ -19,6 +21,31 @@ type Session struct {
 	open    bool
 	rwmutex *sync.RWMutex
 }
+
+
+func NewSession(melody  *Melody,
+				Request *http.Request,
+				Keys map[string]interface{},
+				conn *websocket.Conn) *Session {
+
+
+	keys := cmap.New()
+
+	if len(Keys)>0 {
+		keys.MSet(Keys)
+	}
+
+	return &Session{
+		Request: Request,
+		Keys:    keys,
+		conn:    conn,
+		output:  make(chan *envelope, m.Config.MessageBufferSize),
+		melody:  melody,
+		open:    true,
+		rwmutex: &sync.RWMutex{},
+	}
+}
+
 
 func (s *Session) writeMessage(message *envelope) {
 	if s.closed() {
@@ -188,7 +215,7 @@ func (s *Session) CloseWithMsg(msg []byte) error {
 // It also lazy initializes s.Keys if it was not used previously.
 func (s *Session) Set(key string, value interface{}) {
 	if s.Keys == nil {
-		s.Keys = make(map[string]interface{})
+		s.Keys = cmap.New()
 	}
 
 	s.Keys[key] = value
@@ -204,13 +231,22 @@ func (s *Session) Get(key string) (value interface{}, exists bool) {
 	return
 }
 
+
+func (s *Session) Del(key string) {
+	if s.Keys != nil {
+		s.Keys.Remove(key)
+	}
+}
+
+
 // MustGet returns the value for the given key if it exists, otherwise it panics.
 func (s *Session) MustGet(key string) interface{} {
 	if value, exists := s.Get(key); exists {
 		return value
 	}
 
-	panic("Key \"" + key + "\" does not exist")
+	return ""
+	//panic("Key \"" + key + "\" does not exist")
 }
 
 // IsClosed returns the status of the connection.
