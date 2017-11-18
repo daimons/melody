@@ -3,8 +3,6 @@ package melody
 import (
 	"errors"
 	"net/http"
-	"sync"
-
 	"github.com/gorilla/websocket"
 )
 
