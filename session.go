@@ -11,10 +11,11 @@ import (
 	"github.com/orcaman/concurrent-map"
 )
 
+//Keys    map[string]interface{}
 // Session wrapper around websocket connections.
 type Session struct {
 	Request *http.Request
-	Keys    map[string]interface{}
+	Keys    cmap.ConcurrentMap
 	conn    *websocket.Conn
 	output  chan *envelope
 	melody  *Melody
@@ -39,7 +40,7 @@ func NewSession(melody  *Melody,
 		Request: Request,
 		Keys:    keys,
 		conn:    conn,
-		output:  make(chan *envelope, m.Config.MessageBufferSize),
+		output:  make(chan *envelope, melody.Config.MessageBufferSize),
 		melody:  melody,
 		open:    true,
 		rwmutex: &sync.RWMutex{},
@@ -217,15 +218,14 @@ func (s *Session) Set(key string, value interface{}) {
 	if s.Keys == nil {
 		s.Keys = cmap.New()
 	}
-
-	s.Keys[key] = value
+	s.Keys.Set(key,value)
 }
 
 // Get returns the value for the given key, ie: (value, true).
 // If the value does not exists it returns (nil, false)
 func (s *Session) Get(key string) (value interface{}, exists bool) {
 	if s.Keys != nil {
-		value, exists = s.Keys[key]
+		value, exists = s.Keys.Get(key)
 	}
 
 	return
